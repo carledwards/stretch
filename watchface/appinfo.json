@@ -1,0 +1,93 @@
+{
+    "appKeys": {
+        "24-hour-mode": 1,
+        "battery-bar": 3,
+        "blink-dots": 0,
+        "text-color": 2,
+        "vibrate-bt-dis": 4,
+        "vibrate-bt-dis-when-activity": 5
+    },
+    "capabilities": [
+        "configurable"
+    ],
+    "companyName": "BengalBot",
+    "longName": "Stretch",
+    "projectType": "native",
+    "resources": {
+        "media": [
+            {
+                "file": "images/no_bt.png",
+                "name": "NO_BT",
+                "type": "png"
+            },
+            {
+                "file": "images/long_digit_1.png",
+                "name": "LONG_DIGIT_1",
+                "type": "png"
+            },
+            {
+                "characterRegex": "[0-9,onuedhuriatBMONTUEWDHFRISA\\ /%]",
+                "file": "fonts/PixelMecha.ttf",
+                "name": "PM_32",
+                "type": "font"
+            },
+            {
+                "file": "images/dot.png",
+                "name": "DOT",
+                "type": "png"
+            },
+            {
+                "file": "images/long_digit_9.png",
+                "name": "LONG_DIGIT_9",
+                "type": "png"
+            },
+            {
+                "file": "images/long_digit_8.png",
+                "name": "LONG_DIGIT_8",
+                "type": "png"
+            },
+            {
+                "file": "images/long_digit_7.png",
+                "name": "LONG_DIGIT_7",
+                "type": "png"
+            },
+            {
+                "file": "images/long_digit_6.png",
+                "name": "LONG_DIGIT_6",
+                "type": "png"
+            },
+            {
+                "file": "images/long_digit_5.png",
+                "name": "LONG_DIGIT_5",
+                "type": "png"
+            },
+            {
+                "file": "images/long_digit_4.png",
+                "name": "LONG_DIGIT_4",
+                "type": "png"
+            },
+            {
+                "file": "images/long_digit_3.png",
+                "name": "LONG_DIGIT_3",
+                "type": "png"
+            },
+            {
+                "file": "images/long_digit_2.png",
+                "name": "LONG_DIGIT_2",
+                "type": "png"
+            },
+            {
+                "file": "images/long_digit_0.png",
+                "name": "LONG_DIGIT_0",
+                "type": "png"
+            }
+        ]
+    },
+    "shortName": "Stretch",
+    "uuid": "2970382a-b986-494c-b55e-23cf3fc67333",
+    "versionCode": 1,
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": true
+    }
+}
