@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Stretch Config</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="jquery.mobile-1.3.2.min.css" />
+    <script src="jquery-1.9.1.min.js"></script>
+    <script src="jquery.mobile-1.3.2.min.js"></script>
+  </head>
+  <body>
+    <div data-role="page" id="main">
+      <div data-role="header" class="jqm-header">
+        <h1>Stretch Config</h1>
+      </div>
+
+      <div data-role="content">
+
+        <div data-role="fieldcontain">
+          <label for="blink-dots">Blink dots:</label>
+          <select name="blink-dots" id="blink-dots" data-role="slider">
+            <option value="off">Off</option>
+            <option value="on">On</option>
+          </select>
+        </div>
+
+        <div data-role="fieldcontain">
+          <label for="24-hour-mode">24-hour mode:</label>
+          <select name="24-hour-mode" id="24-hour-mode" data-role="slider">
+            <option value="off">Off</option>
+            <option value="on">On</option>
+          </select>
+        </div>
+
+        <div data-role="fieldcontain">
+          <label for="text-color">Text color:</label>
+          <select name="text-color" id="text-color" data-role="slider">
+            <option value="off">White</option>
+            <option value="on">Black</option>
+          </select>
+        </div>
+
+        <div data-role="fieldcontain">
+          <label for="battery-bar">Battery Bar:</label>
+          <select name="battery-bar" id="battery-bar" data-role="slider">
+            <option value="off">Off</option>
+            <option value="on">On</option>
+          </select>
+        </div>
+
+        <div data-role="fieldcontain">
+          <label for="vibrate-bt-dis">Vibrate on BT disconnect:</label>
+          <select name="vibrate-bt-dis" id="vibrate-bt-dis" data-role="slider">
+            <option value="off">Off</option>
+            <option value="on">On</option>
+          </select>
+        </div>
+
+        <div data-role="fieldcontain">
+          <label for="vibrate-bt-dis-when-activity">Only vibrate when activity:</label>
+          <select name="vibrate-bt-dis-when-activity" id="vibrate-bt-dis-when-activity" data-role="slider">
+            <option value="off">Off</option>
+            <option value="on">On</option>
+          </select>
+        </div>
+
+        <div class="ui-body ui-body-b">
+          <fieldset class="ui-grid-a">
+              <div class="ui-block-a"><button type="submit" data-theme="d" id="b-cancel">Cancel</button></div>
+              <div class="ui-block-b"><button type="submit" data-theme="a" id="b-submit">Submit</button></div>
+            </fieldset>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      function saveOptions() {
+        var options = {
+          'blink-dots': $("#blink-dots").val() === "on",
+          '24-hour-mode': $("#24-hour-mode").val() === "on",
+          'text-color': $("#text-color").val() === "on",
+          'battery-bar': $("#battery-bar").val() === "on",
+          'vibrate-bt-dis': $("#vibrate-bt-dis").val() === "on",
+          'vibrate-bt-dis-when-activity': $("#vibrate-bt-dis-when-activity").val() === "on"
+        }
+        return options;
+      }
+
+      $().ready(function() {
+        console.log(getURLParameter("blink-dots"));
+        $("#blink-dots").val(getURLParameter("blink-dots")==="true"?"on":"off").slider("refresh");
+        $("#24-hour-mode").val(getURLParameter("24-hour-mode")==="true"?"on":"off").slider("refresh");
+        $("#text-color").val(getURLParameter("text-color")==="true"?"on":"off").slider("refresh");
+        $("#battery-bar").val(getURLParameter("battery-bar")==="true"?"on":"off").slider("refresh");
+        $("#vibrate-bt-dis").val(getURLParameter("vibrate-bt-dis")==="true"?"on":"off").slider("refresh");
+        $("#vibrate-bt-dis-when-activity").val(getURLParameter("vibrate-bt-dis-when-activity")==="true"?"on":"off").slider("refresh");
+
+        $("#b-cancel").click(function() {
+          console.log("Cancel");
+          document.location = "pebblejs://close";
+        });
+
+        $("#b-submit").click(function() {
+          console.log("Submit");
+
+          var location = "pebblejs://close#" + encodeURIComponent(JSON.stringify(saveOptions()));
+          console.log("Warping to: " + location);
+          console.log(location);
+          document.location = location;
+        });
+
+      });
+
+      function getURLParameter(name) {
+          return decodeURI(
+              (RegExp(name + '=' + '(.+?)(&|$)').exec(location.search)||[,null])[1]
+          );
+      }      
+    </script>
+  </body>
+</html>
