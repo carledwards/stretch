@@ -12,7 +12,7 @@ GFont s_digital_font;
 
 PropertyAnimation *batt_animation = NULL;
 
-void setup_basebar(Layer *window_layer) {
+void basebar_setup(Layer *window_layer) {
   // load our custom font for the date/battery 
   s_digital_font = fonts_load_custom_font(resource_get_handle(CUSTOM_FONT_ID));
 
@@ -50,6 +50,19 @@ void setup_basebar(Layer *window_layer) {
   text_layer_set_text(battery_label, battery_label_buffer);  
 }
 
+void basebar_teardown() {
+  text_layer_destroy(date_label);
+  text_layer_destroy(battery_label);
+  layer_destroy(clip_layer);
+  fonts_unload_custom_font(s_digital_font);
+  bitmap_layer_destroy(no_bt_image_layer);
+  gbitmap_destroy(no_bt_image);
+  if (batt_animation != NULL) {
+    property_animation_destroy(batt_animation);
+    batt_animation = NULL;
+  }
+}
+
 void basebar_set_date_text(char *time_buffer) {
   text_layer_set_text(date_label, time_buffer);
 }
@@ -69,6 +82,7 @@ void basebar_hide_battery() {
   }
   GRect to_frame = GRect(0, 34, 144, 34);
   batt_animation = property_animation_create_layer_frame(text_layer_get_layer(battery_label), NULL, &to_frame);
+  animation_set_curve(&(batt_animation->animation), AnimationCurveLinear);
   animation_schedule(&(batt_animation->animation));
 }
 
@@ -80,5 +94,6 @@ void basebar_show_battery() {
   }
   GRect to_frame = GRect(0, 0, 144, 34);
   batt_animation = property_animation_create_layer_frame(text_layer_get_layer(battery_label), NULL, &to_frame);
+  animation_set_curve(&(batt_animation->animation), AnimationCurveLinear);
   animation_schedule(&(batt_animation->animation));
 }

@@ -426,6 +426,16 @@ static void send_config_to_js(void) {
   app_message_outbox_send();
 }
 
+void accel_tap_handler(AccelAxisType axis, int32_t direction) {
+  static time_t last_shake_time = 0;
+  time_t now = time(NULL);
+  if (now - last_shake_time <= 3) {
+    start_battery_bar_animation();
+    basebar_show_battery();
+  }
+  last_shake_time = now;
+}
+
 static void window_load(Window *window) {
   digit_images[0] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_0);
   digit_images[1] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_1);
@@ -475,7 +485,7 @@ static void window_load(Window *window) {
   // add on the remainging digit layer
   layer_add_child(window_layer, remaining_digit_layer);
 
-  setup_basebar(window_layer);
+  basebar_setup(window_layer);
 
   // battery bar
   battery_bar_layer = layer_create(get_battery_bar_full_frame());
@@ -498,16 +508,19 @@ static void window_load(Window *window) {
   update_time();
 
   start_battery_bar_animation();
+  accel_tap_service_subscribe(accel_tap_handler);
 }
 
 static void window_unload(Window *window) {
   if (second_hand_timer) {
     app_timer_cancel(second_hand_timer);
   }
+  basebar_teardown();
   property_animation_destroy(battery_bar_down_prop_animation);
   property_animation_destroy(battery_bar_up_prop_animation);
   battery_state_service_unsubscribe();
   tick_timer_service_unsubscribe();
+  accel_tap_service_unsubscribe();
   bitmap_layer_destroy(min_ones_image_layer);
   bitmap_layer_destroy(min_tens_image_layer);
   bitmap_layer_destroy(hour_ones_image_layer);

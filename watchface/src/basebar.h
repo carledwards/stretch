@@ -2,7 +2,9 @@
 
 #include "pebble.h"
 
-void setup_basebar(Layer *window_layer);
+void basebar_setup(Layer *window_layer);
+void basebar_teardown();
+
 void basebar_set_date_text(char *time_buffer);
 
 void basebar_hide_no_bt_image();
