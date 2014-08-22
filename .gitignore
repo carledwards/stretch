@@ -1,2 +1,3 @@
 watchface/build
 .lock-waf_darwin_build
+watchface/pebble-screenshot_*.png
