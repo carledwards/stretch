@@ -1,7 +1,7 @@
 #include "pebble.h"
 #include "string.h"
 #include "stdlib.h"
-#define CUSTOM_FONT_ID       RESOURCE_ID_PM_32
+#include "basebar.h"
 #define DIGIT_HEIGHT         122
 #define DIGIT_WIDTH          21
 #define COLON_HEIGHT         5
@@ -45,14 +45,9 @@ BitmapLayer *min_tens_image_layer;
 BitmapLayer *min_ones_image_layer;
 GBitmap * digit_images[10];
 GBitmap * dot_image;
-GBitmap * no_bt_image;
-TextLayer *date_label;
-TextLayer *battery_label;
-GFont s_digital_font;
 InverterLayer *inv_layer;
 BitmapLayer *top_dot_image_layer;
 BitmapLayer *bottom_dot_image_layer;
-BitmapLayer *no_bt_image_layer;
 Layer *battery_bar_layer;
 Layer *tens_digit_layer;
 Layer *remaining_digit_layer;
@@ -156,17 +151,17 @@ static void update_time() {
     else {
       strcat(time_buffer, "  ");
     }
-    layer_set_hidden(bitmap_layer_get_layer(no_bt_image_layer), true);  
+    basebar_hide_no_bt_image();
   }
   else {
     strcat(time_buffer, "    ");
-    layer_set_hidden(bitmap_layer_get_layer(no_bt_image_layer), false);  
+    basebar_show_no_bt_image(); 
   }
   strcat(time_buffer, itoa(t->tm_mon + 1));
   strcat(time_buffer, "/");
   strcat(time_buffer, itoa(t->tm_mday));
   
-  text_layer_set_text(date_label, time_buffer);
+  basebar_set_date_text(time_buffer);
 
   int hour = t->tm_hour;
   if (!config_is_24hour && hour > 12) {
@@ -285,9 +280,11 @@ static GRect get_battery_bar_full_frame(void) {
 
 static void battery_bar_up_animation_stopped(Animation *animation, bool finished, void *data) {
   battery_state_service_subscribe(&handle_battery_event);
+  basebar_hide_battery();
 }
 
 static void battery_bar_down_animation_stopped(Animation *animation, bool finished, void *data) {
+
   // don't continue if the battery bar is disabled
   if (config_battery_bar == false) {
     return;
@@ -441,7 +438,6 @@ static void window_load(Window *window) {
   digit_images[8] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_8);
   digit_images[9] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_9);
   dot_image = gbitmap_create_with_resource(RESOURCE_ID_DOT);
-  no_bt_image = gbitmap_create_with_resource(RESOURCE_ID_NO_BT);
   
   Layer *window_layer = window_get_root_layer(window);
 
@@ -479,38 +475,8 @@ static void window_load(Window *window) {
   // add on the remainging digit layer
   layer_add_child(window_layer, remaining_digit_layer);
 
-  // load our custom font for the date/battery 
-  s_digital_font = fonts_load_custom_font(resource_get_handle(CUSTOM_FONT_ID));
+  setup_basebar(window_layer);
 
-   // date label
-  date_label = text_layer_create(GRect(0, 134, 144, 34));
-  text_layer_set_text_color(date_label, GColorBlack);
-  text_layer_set_font(date_label, s_digital_font);
-  text_layer_set_text_alignment(date_label, GTextAlignmentCenter);
-  layer_add_child(window_layer, text_layer_get_layer(date_label));
-
-  // no bluetooth icon
-  no_bt_image_layer = bitmap_layer_create(GRect(18, 141, 21, 26));
-  bitmap_layer_set_bitmap(no_bt_image_layer, no_bt_image);
-  layer_add_child(window_layer, bitmap_layer_get_layer(no_bt_image_layer));
-  layer_set_hidden(bitmap_layer_get_layer(no_bt_image_layer), true);  
-  
-  /*
-  // battery label
-  battery_label = text_layer_create(GRect(0, 134, 144, 34));
-  text_layer_set_text_color(battery_label, GColorBlack);
-  text_layer_set_font(battery_label, s_digital_font);
-  text_layer_set_text_alignment(battery_label, GTextAlignmentCenter);
-  layer_add_child(window_layer, text_layer_get_layer(battery_label));
-
-  // set the value of the battery percentage
-  static char *battery_label_buffer = "012345678901";
-  battery_label_buffer[0] = '\0';
-  strcat(battery_label_buffer, "BAT  ");
-  strcat(battery_label_buffer, itoa(battery_state_service_peek().charge_percent));
-  strcat(battery_label_buffer, "%");
-  text_layer_set_text(battery_label, battery_label_buffer);
-*/  
   // battery bar
   battery_bar_layer = layer_create(get_battery_bar_full_frame());
   layer_set_update_proc(battery_bar_layer, &battery_bar_layer_update_callback);
@@ -542,16 +508,12 @@ static void window_unload(Window *window) {
   property_animation_destroy(battery_bar_up_prop_animation);
   battery_state_service_unsubscribe();
   tick_timer_service_unsubscribe();
-  text_layer_destroy(date_label);
-//  text_layer_destroy(battery_label);
-  fonts_unload_custom_font(s_digital_font);
   bitmap_layer_destroy(min_ones_image_layer);
   bitmap_layer_destroy(min_tens_image_layer);
   bitmap_layer_destroy(hour_ones_image_layer);
   bitmap_layer_destroy(hour_tens_image_layer);
   bitmap_layer_destroy(bottom_dot_image_layer);
   bitmap_layer_destroy(top_dot_image_layer);
-  bitmap_layer_destroy(no_bt_image_layer);
   inverter_layer_destroy(inv_layer);
   layer_destroy(battery_bar_layer);
   layer_destroy(tens_digit_layer);
@@ -567,7 +529,6 @@ static void window_unload(Window *window) {
   gbitmap_destroy(digit_images[8]);
   gbitmap_destroy(digit_images[9]);
   gbitmap_destroy(dot_image);
-  gbitmap_destroy(no_bt_image);
 }
 
 static void load_config(void) {
