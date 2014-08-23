@@ -19,6 +19,8 @@
 #define THREE_DIGITS_TIME_LEFT_MARGIN      24
 #define THREE_DIGITS_HOUR_TENS_LAYER_GRECT GRect(-10, -10, 1, 1)
 #define THREE_DIGITS_REMAINING_LAYER_GRECT GRect(THREE_DIGITS_TIME_LEFT_MARGIN, TIME_TOP_MARGIN, 3*DIGIT_WIDTH+2*SPACE_BETWEEN_DIGIT+(COLON_PADDING+COLON_WIDTH), DIGIT_HEIGHT)  
+
+void accel_tap_handler(AccelAxisType axis, int32_t direction);
   
 // app messages
 enum {
@@ -281,6 +283,7 @@ static GRect get_battery_bar_full_frame(void) {
 static void battery_bar_up_animation_stopped(Animation *animation, bool finished, void *data) {
   battery_state_service_subscribe(&handle_battery_event);
   basebar_hide_battery();
+  accel_tap_service_subscribe(accel_tap_handler);
 }
 
 static void battery_bar_down_animation_stopped(Animation *animation, bool finished, void *data) {
@@ -299,6 +302,8 @@ static void battery_bar_down_animation_stopped(Animation *animation, bool finish
 }
 
 static void start_battery_bar_animation(void) {
+  basebar_show_battery();
+
   // disable any updates to the battery state event listeners
   battery_state_service_unsubscribe();
 
@@ -310,6 +315,20 @@ static void start_battery_bar_animation(void) {
     .stopped = (AnimationStoppedHandler) battery_bar_down_animation_stopped,
   }, NULL /* callback data */);
   animation_schedule((Animation*) battery_bar_down_prop_animation);
+}
+
+void basebar_hide_battery_timer_cb(void *data) {
+  basebar_hide_battery();
+}
+
+void accel_tap_handler(AccelAxisType axis, int32_t direction) {
+  static time_t last_shake_time = 0;
+  time_t now = time(NULL);
+  if (now - last_shake_time <= 3) {
+    basebar_show_battery();
+    app_timer_register(3000, basebar_hide_battery_timer_cb, (void *)0);
+  }
+  last_shake_time = now;
 }
 
 static void set_blink_dots(bool new_value) {
@@ -426,14 +445,8 @@ static void send_config_to_js(void) {
   app_message_outbox_send();
 }
 
-void accel_tap_handler(AccelAxisType axis, int32_t direction) {
-  static time_t last_shake_time = 0;
-  time_t now = time(NULL);
-  if (now - last_shake_time <= 3) {
-    start_battery_bar_animation();
-    basebar_show_battery();
-  }
-  last_shake_time = now;
+void start_battery_bar_animation_timer_cb(void *data) {
+  start_battery_bar_animation();
 }
 
 static void window_load(Window *window) {
@@ -507,8 +520,7 @@ static void window_load(Window *window) {
   // force an update
   update_time();
 
-  start_battery_bar_animation();
-  accel_tap_service_subscribe(accel_tap_handler);
+  app_timer_register(500, start_battery_bar_animation_timer_cb, (void *)0);
 }
 
 static void window_unload(Window *window) {

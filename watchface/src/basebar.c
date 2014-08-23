@@ -35,7 +35,6 @@ void basebar_setup(Layer *window_layer) {
   layer_add_child(clip_layer, bitmap_layer_get_layer(no_bt_image_layer));
   layer_set_hidden(bitmap_layer_get_layer(no_bt_image_layer), true);  
   
-  
   // battery label
   battery_label = text_layer_create(GRect(0, 0, 144, 34));
   text_layer_set_text_color(battery_label, GColorBlack);
