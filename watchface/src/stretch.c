@@ -1,7 +1,7 @@
 #include "pebble.h"
 #include "string.h"
 #include "stdlib.h"
-#define CUSTOM_FONT_ID       RESOURCE_ID_PM_32
+#include "basebar.h"
 #define DIGIT_HEIGHT         122
 #define DIGIT_WIDTH          21
 #define COLON_HEIGHT         5
@@ -19,6 +19,8 @@
 #define THREE_DIGITS_TIME_LEFT_MARGIN      24
 #define THREE_DIGITS_HOUR_TENS_LAYER_GRECT GRect(-10, -10, 1, 1)
 #define THREE_DIGITS_REMAINING_LAYER_GRECT GRect(THREE_DIGITS_TIME_LEFT_MARGIN, TIME_TOP_MARGIN, 3*DIGIT_WIDTH+2*SPACE_BETWEEN_DIGIT+(COLON_PADDING+COLON_WIDTH), DIGIT_HEIGHT)  
+
+void accel_tap_handler(AccelAxisType axis, int32_t direction);
   
 // app messages
 enum {
@@ -45,14 +47,9 @@ BitmapLayer *min_tens_image_layer;
 BitmapLayer *min_ones_image_layer;
 GBitmap * digit_images[10];
 GBitmap * dot_image;
-GBitmap * no_bt_image;
-TextLayer *date_label;
-TextLayer *battery_label;
-GFont s_digital_font;
 InverterLayer *inv_layer;
 BitmapLayer *top_dot_image_layer;
 BitmapLayer *bottom_dot_image_layer;
-BitmapLayer *no_bt_image_layer;
 Layer *battery_bar_layer;
 Layer *tens_digit_layer;
 Layer *remaining_digit_layer;
@@ -156,17 +153,17 @@ static void update_time() {
     else {
       strcat(time_buffer, "  ");
     }
-    layer_set_hidden(bitmap_layer_get_layer(no_bt_image_layer), true);  
+    basebar_hide_no_bt_image();
   }
   else {
     strcat(time_buffer, "    ");
-    layer_set_hidden(bitmap_layer_get_layer(no_bt_image_layer), false);  
+    basebar_show_no_bt_image(); 
   }
   strcat(time_buffer, itoa(t->tm_mon + 1));
   strcat(time_buffer, "/");
   strcat(time_buffer, itoa(t->tm_mday));
   
-  text_layer_set_text(date_label, time_buffer);
+  basebar_set_date_text(time_buffer);
 
   int hour = t->tm_hour;
   if (!config_is_24hour && hour > 12) {
@@ -285,9 +282,12 @@ static GRect get_battery_bar_full_frame(void) {
 
 static void battery_bar_up_animation_stopped(Animation *animation, bool finished, void *data) {
   battery_state_service_subscribe(&handle_battery_event);
+  basebar_hide_battery();
+  accel_tap_service_subscribe(accel_tap_handler);
 }
 
 static void battery_bar_down_animation_stopped(Animation *animation, bool finished, void *data) {
+
   // don't continue if the battery bar is disabled
   if (config_battery_bar == false) {
     return;
@@ -302,6 +302,8 @@ static void battery_bar_down_animation_stopped(Animation *animation, bool finish
 }
 
 static void start_battery_bar_animation(void) {
+  basebar_show_battery();
+
   // disable any updates to the battery state event listeners
   battery_state_service_unsubscribe();
 
@@ -313,6 +315,20 @@ static void start_battery_bar_animation(void) {
     .stopped = (AnimationStoppedHandler) battery_bar_down_animation_stopped,
   }, NULL /* callback data */);
   animation_schedule((Animation*) battery_bar_down_prop_animation);
+}
+
+void basebar_hide_battery_timer_cb(void *data) {
+  basebar_hide_battery();
+}
+
+void accel_tap_handler(AccelAxisType axis, int32_t direction) {
+  static time_t last_shake_time = 0;
+  time_t now = time(NULL);
+  if (now - last_shake_time <= 3) {
+    basebar_show_battery();
+    app_timer_register(3000, basebar_hide_battery_timer_cb, (void *)0);
+  }
+  last_shake_time = now;
 }
 
 static void set_blink_dots(bool new_value) {
@@ -429,6 +445,10 @@ static void send_config_to_js(void) {
   app_message_outbox_send();
 }
 
+void start_battery_bar_animation_timer_cb(void *data) {
+  start_battery_bar_animation();
+}
+
 static void window_load(Window *window) {
   digit_images[0] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_0);
   digit_images[1] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_1);
@@ -441,7 +461,6 @@ static void window_load(Window *window) {
   digit_images[8] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_8);
   digit_images[9] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_9);
   dot_image = gbitmap_create_with_resource(RESOURCE_ID_DOT);
-  no_bt_image = gbitmap_create_with_resource(RESOURCE_ID_NO_BT);
   
   Layer *window_layer = window_get_root_layer(window);
 
@@ -479,38 +498,8 @@ static void window_load(Window *window) {
   // add on the remainging digit layer
   layer_add_child(window_layer, remaining_digit_layer);
 
-  // load our custom font for the date/battery 
-  s_digital_font = fonts_load_custom_font(resource_get_handle(CUSTOM_FONT_ID));
+  basebar_setup(window_layer);
 
-   // date label
-  date_label = text_layer_create(GRect(0, 134, 144, 34));
-  text_layer_set_text_color(date_label, GColorBlack);
-  text_layer_set_font(date_label, s_digital_font);
-  text_layer_set_text_alignment(date_label, GTextAlignmentCenter);
-  layer_add_child(window_layer, text_layer_get_layer(date_label));
-
-  // no bluetooth icon
-  no_bt_image_layer = bitmap_layer_create(GRect(18, 141, 21, 26));
-  bitmap_layer_set_bitmap(no_bt_image_layer, no_bt_image);
-  layer_add_child(window_layer, bitmap_layer_get_layer(no_bt_image_layer));
-  layer_set_hidden(bitmap_layer_get_layer(no_bt_image_layer), true);  
-  
-  /*
-  // battery label
-  battery_label = text_layer_create(GRect(0, 134, 144, 34));
-  text_layer_set_text_color(battery_label, GColorBlack);
-  text_layer_set_font(battery_label, s_digital_font);
-  text_layer_set_text_alignment(battery_label, GTextAlignmentCenter);
-  layer_add_child(window_layer, text_layer_get_layer(battery_label));
-
-  // set the value of the battery percentage
-  static char *battery_label_buffer = "012345678901";
-  battery_label_buffer[0] = '\0';
-  strcat(battery_label_buffer, "BAT  ");
-  strcat(battery_label_buffer, itoa(battery_state_service_peek().charge_percent));
-  strcat(battery_label_buffer, "%");
-  text_layer_set_text(battery_label, battery_label_buffer);
-*/  
   // battery bar
   battery_bar_layer = layer_create(get_battery_bar_full_frame());
   layer_set_update_proc(battery_bar_layer, &battery_bar_layer_update_callback);
@@ -531,27 +520,25 @@ static void window_load(Window *window) {
   // force an update
   update_time();
 
-  start_battery_bar_animation();
+  app_timer_register(500, start_battery_bar_animation_timer_cb, (void *)0);
 }
 
 static void window_unload(Window *window) {
   if (second_hand_timer) {
     app_timer_cancel(second_hand_timer);
   }
+  basebar_teardown();
   property_animation_destroy(battery_bar_down_prop_animation);
   property_animation_destroy(battery_bar_up_prop_animation);
   battery_state_service_unsubscribe();
   tick_timer_service_unsubscribe();
-  text_layer_destroy(date_label);
-//  text_layer_destroy(battery_label);
-  fonts_unload_custom_font(s_digital_font);
+  accel_tap_service_unsubscribe();
   bitmap_layer_destroy(min_ones_image_layer);
   bitmap_layer_destroy(min_tens_image_layer);
   bitmap_layer_destroy(hour_ones_image_layer);
   bitmap_layer_destroy(hour_tens_image_layer);
   bitmap_layer_destroy(bottom_dot_image_layer);
   bitmap_layer_destroy(top_dot_image_layer);
-  bitmap_layer_destroy(no_bt_image_layer);
   inverter_layer_destroy(inv_layer);
   layer_destroy(battery_bar_layer);
   layer_destroy(tens_digit_layer);
@@ -567,7 +554,6 @@ static void window_unload(Window *window) {
   gbitmap_destroy(digit_images[8]);
   gbitmap_destroy(digit_images[9]);
   gbitmap_destroy(dot_image);
-  gbitmap_destroy(no_bt_image);
 }
 
 static void load_config(void) {
