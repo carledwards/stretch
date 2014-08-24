@@ -322,9 +322,10 @@ void basebar_hide_battery_timer_cb(void *data) {
 }
 
 void accel_tap_handler(AccelAxisType axis, int32_t direction) {
+  //APP_LOG(APP_LOG_LEVEL_INFO, "accel_tap_handler");
   static time_t last_shake_time = 0;
   time_t now = time(NULL);
-  if (now - last_shake_time <= 3) {
+  if (now - last_shake_time <= 6) {
     basebar_show_battery();
     app_timer_register(3000, basebar_hide_battery_timer_cb, (void *)0);
   }
