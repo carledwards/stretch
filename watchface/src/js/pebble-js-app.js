@@ -34,6 +34,7 @@ Pebble.addEventListener("webviewclosed", function(e) {
   var options = JSON.parse(decodeURIComponent(e.response));
   //console.log("Options = " + JSON.stringify(options));
   for(var key in options) {
+    options[key] = options[key] ? 1 : 0
     localStorage.setItem(key, options[key]);
   }
 
