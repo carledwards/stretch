@@ -41,7 +41,7 @@
         </div>
 
         <div data-role="fieldcontain">
-          <label for="battery-bar">Battery Bar:</label>
+          <label for="battery-bar">Battery bar:</label>
           <select name="battery-bar" id="battery-bar" data-role="slider">
             <option value="off">Off</option>
             <option value="on">On</option>
@@ -57,7 +57,7 @@
         </div>
 
         <div data-role="fieldcontain">
-          <label for="vibrate-bt-dis-when-activity">On BT disconnect, only vibrate if watch activity detected:</label>
+         <label for="vibrate-bt-dis-when-activity">On BT disconnect, only vibrate if watch activity detected:</label>
           <select name="vibrate-bt-dis-when-activity" id="vibrate-bt-dis-when-activity" data-role="slider">
             <option value="off">Off</option>
             <option value="on">On</option>
@@ -86,14 +86,18 @@
         return options;
       }
 
+      function setSliderValue(idName) {
+         var optionValue = getURLParameter(idName);
+         $("#"+idName).val(optionValue==="true" || optionValue==="1"?"on":"off").slider("refresh");
+      }
+
       $().ready(function() {
-        console.log(getURLParameter("blink-dots"));
-        $("#blink-dots").val(getURLParameter("blink-dots")==="true"?"on":"off").slider("refresh");
-        $("#24-hour-mode").val(getURLParameter("24-hour-mode")==="true"?"on":"off").slider("refresh");
-        $("#text-color").val(getURLParameter("text-color")==="true"?"on":"off").slider("refresh");
-        $("#battery-bar").val(getURLParameter("battery-bar")==="true"?"on":"off").slider("refresh");
-        $("#vibrate-bt-dis").val(getURLParameter("vibrate-bt-dis")==="true"?"on":"off").slider("refresh");
-        $("#vibrate-bt-dis-when-activity").val(getURLParameter("vibrate-bt-dis-when-activity")==="true"?"on":"off").slider("refresh");
+        setSliderValue("blink-dots");
+        setSliderValue("24-hour-mode");
+        setSliderValue("text-color");
+        setSliderValue("battery-bar");
+        setSliderValue("vibrate-bt-dis");
+        setSliderValue("vibrate-bt-dis-when-activity");
 
         $("#b-cancel").click(function() {
           console.log("Cancel");
