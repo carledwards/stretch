@@ -86,7 +86,7 @@
     "shortName": "Stretch",
     "uuid": "2970382a-b986-494c-b55e-23cf3fc67333",
     "versionCode": 1,
-    "versionLabel": "1.1",
+    "versionLabel": "1.2",
     "watchapp": {
         "watchface": true
     }
