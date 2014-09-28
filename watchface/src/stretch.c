@@ -166,8 +166,15 @@ static void update_time() {
   basebar_set_date_text(time_buffer);
 
   int hour = t->tm_hour;
-  if (!config_is_24hour && hour > 12) {
-    hour = hour - 12;
+
+  // special handling for AM/PM mode
+  if (!config_is_24hour) {
+    if (hour > 12) {
+      hour = hour - 12;
+    }
+    else if (hour == 0) {
+      hour = 12;
+    }
   }
   
   bitmap_layer_set_bitmap(hour_tens_image_layer, digit_images[hour/10]);
