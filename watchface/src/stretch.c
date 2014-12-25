@@ -1,65 +1,15 @@
 #include "pebble.h"
 #include "string.h"
 #include "stdlib.h"
+#include "stretch.h"
 #include "basebar.h"
-#define DIGIT_HEIGHT         122
-#define DIGIT_WIDTH          21
-#define COLON_HEIGHT         5
-#define COLON_WIDTH          5
-#define SPACE_BETWEEN_DIGIT  7
-#define COLON_PADDING        14
-#define BATTERY_WIDTH_IN_PIXELS  140
 
-#define TIME_TOP_MARGIN      6
+#define DEBUG 0
 
-#define FOUR_DIGITS_TIME_LEFT_MARGIN      8
-#define FOUR_DIGITS_HOUR_TENS_LAYER_GRECT GRect(FOUR_DIGITS_TIME_LEFT_MARGIN, TIME_TOP_MARGIN, DIGIT_WIDTH, DIGIT_HEIGHT)
-#define FOUR_DIGITS_REMAINING_LAYER_GRECT GRect(FOUR_DIGITS_TIME_LEFT_MARGIN+DIGIT_WIDTH+SPACE_BETWEEN_DIGIT, TIME_TOP_MARGIN, 3*DIGIT_WIDTH+2*SPACE_BETWEEN_DIGIT+(COLON_PADDING+COLON_WIDTH), DIGIT_HEIGHT)  
-
-#define THREE_DIGITS_TIME_LEFT_MARGIN      24
-#define THREE_DIGITS_HOUR_TENS_LAYER_GRECT GRect(-10, -10, 1, 1)
-#define THREE_DIGITS_REMAINING_LAYER_GRECT GRect(THREE_DIGITS_TIME_LEFT_MARGIN, TIME_TOP_MARGIN, 3*DIGIT_WIDTH+2*SPACE_BETWEEN_DIGIT+(COLON_PADDING+COLON_WIDTH), DIGIT_HEIGHT)  
+StretchApplication app;
 
 void accel_tap_handler(AccelAxisType axis, int32_t direction);
   
-// app messages
-enum {
-  STRETCH_KEY_BLINK_DOTS = 0x0,
-  STRETCH_KEY_IS_24HOUR = 0x1,
-  STRETCH_KEY_TEXT_COLOR_BLACK = 0x2,
-  STRETCH_KEY_BATTERY_BAR = 0x3,
-  STRETCH_KEY_VIBRATE_BT_DIS = 0x4,
-  STRETCH_KEY_VIBRATE_BT_DIS_WHEN_ACTIVITY = 0x5
-};
-
-// config
-bool config_is_24hour = true;
-bool config_blink_dots = true;
-bool config_text_color_black = false;
-bool config_battery_bar = true;
-bool config_vibrate_bt_dis = false;
-bool config_vibrate_bt_dis_when_activity = true;
-
-Window *window;
-BitmapLayer *hour_tens_image_layer;
-BitmapLayer *hour_ones_image_layer;
-BitmapLayer *min_tens_image_layer;
-BitmapLayer *min_ones_image_layer;
-GBitmap * digit_images[10];
-GBitmap * dot_image;
-InverterLayer *inv_layer;
-BitmapLayer *top_dot_image_layer;
-BitmapLayer *bottom_dot_image_layer;
-Layer *battery_bar_layer;
-Layer *tens_digit_layer;
-Layer *remaining_digit_layer;
-int last_update_min = 99;
-AppTimer *second_hand_timer = (AppTimer *)0;
-bool seen_bt_disconnected = false;
-static PropertyAnimation *battery_bar_down_prop_animation;
-static PropertyAnimation *battery_bar_up_prop_animation;
-int accel_sampling_tries = 0;
-
 char *itoa(int num)
 {
 	static char buff[20] = {};
@@ -90,16 +40,20 @@ char *itoa(int num)
 }
 
 GRect get_battery_bar_layer_frame_for_percent(int percent) {
-  GRect battery_bar_layer_frame = layer_get_frame(battery_bar_layer);
-  //APP_LOG(APP_LOG_LEVEL_INFO, "get_battery_bar_layer_frame_for_percent, per: %d, frame: (%d,%d,%d,%d)",
-  //       percent, battery_bar_layer_frame.origin.x, battery_bar_layer_frame.origin.y, battery_bar_layer_frame.size.w, battery_bar_layer_frame.size.h
-  //       );
+  GRect battery_bar_layer_frame = layer_get_frame(app.battery_bar_layer);
+#if DEBUG
+    APP_LOG(APP_LOG_LEVEL_INFO, "get_battery_bar_layer_frame_for_percent, per: %d, frame: (%d,%d,%d,%d)",
+           percent, battery_bar_layer_frame.origin.x, battery_bar_layer_frame.origin.y, battery_bar_layer_frame.size.w, battery_bar_layer_frame.size.h
+           );
+#endif
   int line_length = (BATTERY_WIDTH_IN_PIXELS * percent) / 100;
   int line_start = (BATTERY_WIDTH_IN_PIXELS - line_length) / 2;
   GRect retVal = GRect(line_start, battery_bar_layer_frame.origin.y, line_length, battery_bar_layer_frame.size.h);
-  //APP_LOG(APP_LOG_LEVEL_INFO, "get_battery_bar_layer_frame_for_percent, per: %d, retVal: (%d,%d,%d,%d)",
-  //       percent, retVal.origin.x, retVal.origin.y, retVal.size.w, retVal.size.h
-  //       );
+#if DEBUG
+  APP_LOG(APP_LOG_LEVEL_INFO, "get_battery_bar_layer_frame_for_percent, per: %d, retVal: (%d,%d,%d,%d)",
+         percent, retVal.origin.x, retVal.origin.y, retVal.size.w, retVal.size.h
+         );
+#endif
   return retVal;
 }
 
@@ -116,16 +70,19 @@ static void battery_bar_layer_update_callback(Layer *me, GContext* ctx ) {
 static void set_battery_bar_layer_percent(int percent) {
   GRect to_rect = get_battery_bar_layer_frame_for_percent(percent);
 
-  //GRect from_rect = layer_get_frame(battery_bar_layer);
-  //APP_LOG(APP_LOG_LEVEL_INFO, "set_battery_bay_layer_size, per: %d, from: (%d,%d,%d,%d) to: (%d,%d,%d,%d)",
-  //       percent, from_rect.origin.x, from_rect.origin.y, from_rect.size.w, from_rect.size.h,
-  //       to_rect.origin.x, to_rect.origin.y, to_rect.size.w, to_rect.size.h
-  //       );
+#if DEBUG
+  GRect from_rect = layer_get_frame(app.battery_bar_layer);
+  APP_LOG(APP_LOG_LEVEL_INFO, "set_battery_bay_layer_size, per: %d, from: (%d,%d,%d,%d) to: (%d,%d,%d,%d)",
+         percent, from_rect.origin.x, from_rect.origin.y, from_rect.size.w, from_rect.size.h,
+         to_rect.origin.x, to_rect.origin.y, to_rect.size.w, to_rect.size.h
+         );
+#endif
 
-  layer_set_frame(battery_bar_layer, to_rect);
+  layer_set_frame(app.battery_bar_layer, to_rect);
 }
 
 static void handle_battery_event(BatteryChargeState charge_state) {
+  app.battery_charge_percent = charge_state.charge_percent;
   set_battery_bar_layer_percent(charge_state.charge_percent);
 }
 
@@ -168,7 +125,7 @@ static void update_time() {
   int hour = t->tm_hour;
 
   // special handling for AM/PM mode
-  if (!config_is_24hour) {
+  if (!app.settings.is_24hour) {
     if (hour > 12) {
       hour = hour - 12;
     }
@@ -177,33 +134,33 @@ static void update_time() {
     }
   }
   
-  bitmap_layer_set_bitmap(hour_tens_image_layer, digit_images[hour/10]);
-  bitmap_layer_set_bitmap(hour_ones_image_layer, digit_images[hour - ((hour/10)*10)]);
-  bitmap_layer_set_bitmap(min_tens_image_layer, digit_images[t->tm_min/10]);
-  bitmap_layer_set_bitmap(min_ones_image_layer, digit_images[t->tm_min - ((t->tm_min/10)*10)]);
+  bitmap_layer_set_bitmap(app.hour_tens_image_layer, app.digit_images[hour/10]);
+  bitmap_layer_set_bitmap(app.hour_ones_image_layer, app.digit_images[hour - ((hour/10)*10)]);
+  bitmap_layer_set_bitmap(app.min_tens_image_layer, app.digit_images[t->tm_min/10]);
+  bitmap_layer_set_bitmap(app.min_ones_image_layer, app.digit_images[t->tm_min - ((t->tm_min/10)*10)]);
   
   if (hour < 10) {
-    layer_set_frame(tens_digit_layer, THREE_DIGITS_HOUR_TENS_LAYER_GRECT);
-    layer_set_frame(remaining_digit_layer, THREE_DIGITS_REMAINING_LAYER_GRECT);
+    layer_set_frame(app.tens_digit_layer, THREE_DIGITS_HOUR_TENS_LAYER_GRECT);
+    layer_set_frame(app.remaining_digit_layer, THREE_DIGITS_REMAINING_LAYER_GRECT);
   }
   else {
-    layer_set_frame(tens_digit_layer, FOUR_DIGITS_HOUR_TENS_LAYER_GRECT);
-    layer_set_frame(remaining_digit_layer, FOUR_DIGITS_REMAINING_LAYER_GRECT);
+    layer_set_frame(app.tens_digit_layer, FOUR_DIGITS_HOUR_TENS_LAYER_GRECT);
+    layer_set_frame(app.remaining_digit_layer, FOUR_DIGITS_REMAINING_LAYER_GRECT);
   }
 }
 
 static void show_blink_dots(void) {
-  layer_set_hidden(bitmap_layer_get_layer(top_dot_image_layer), false);
-  layer_set_hidden(bitmap_layer_get_layer(bottom_dot_image_layer), false);
+  layer_set_hidden(bitmap_layer_get_layer(app.top_dot_image_layer), false);
+  layer_set_hidden(bitmap_layer_get_layer(app.bottom_dot_image_layer), false);
 }
 
 static void blink_timer_callback(void *data) {
   // hide the dots
-  if (config_blink_dots) {
-    layer_set_hidden(bitmap_layer_get_layer(top_dot_image_layer), true);
-    layer_set_hidden(bitmap_layer_get_layer(bottom_dot_image_layer), true);
+  if (app.settings.blink_dots) {
+    layer_set_hidden(bitmap_layer_get_layer(app.top_dot_image_layer), true);
+    layer_set_hidden(bitmap_layer_get_layer(app.bottom_dot_image_layer), true);
   }
-  second_hand_timer = (AppTimer *)0;
+  app.second_hand_timer = (AppTimer *)0;
 }
 
 static void notify_disconnect(void) {
@@ -226,19 +183,21 @@ static void accel_handler(AccelData *data, uint32_t num_samples) {
     z_low = data[i].z < z_low ? data[i].z : z_low;
     z_high = data[i].z > z_high ? data[i].z : z_high;
   }
-  
-//  APP_LOG(APP_LOG_LEVEL_INFO, "%d %d %d %d %d %d", x_low, x_high, y_low, y_high, z_low, z_high);
+
+#if DEBUG  
+  APP_LOG(APP_LOG_LEVEL_INFO, "%d %d %d %d %d %d", x_low, x_high, y_low, y_high, z_low, z_high);
+#endif
     
   if (x_high - x_low > 100 || y_high - y_low > 100 || z_high - z_low > 100) {
-    if (seen_bt_disconnected && config_vibrate_bt_dis && config_vibrate_bt_dis_when_activity) {
+    if (app.seen_bt_disconnected && app.settings.vibrate_bt_dis && app.settings.vibrate_bt_dis_when_activity) {
       notify_disconnect();
     }
     accel_data_service_unsubscribe();
   }
   else {
     // stop the sampling if the watch isn't moving
-    accel_sampling_tries++;
-    if (accel_sampling_tries > 10) {
+    app.accel_sampling_tries++;
+    if (app.accel_sampling_tries > 10) {
       accel_data_service_unsubscribe();
     }
   }
@@ -246,18 +205,18 @@ static void accel_handler(AccelData *data, uint32_t num_samples) {
 
 static void bluetooth_connection_handler(bool is_connected) {
   update_time();
-  if (!config_vibrate_bt_dis) {
+  if (!app.settings.vibrate_bt_dis) {
     return;
   }
   if (is_connected) {
-    seen_bt_disconnected = false;
+    app.seen_bt_disconnected = false;
     return;
   }
-  if (!seen_bt_disconnected) {
-    seen_bt_disconnected = true;
+  if (!app.seen_bt_disconnected) {
+    app.seen_bt_disconnected = true;
     
-    if (config_vibrate_bt_dis_when_activity) {
-      accel_sampling_tries = 0;
+    if (app.settings.vibrate_bt_dis_when_activity) {
+      app.accel_sampling_tries = 0;
       accel_data_service_subscribe(12, accel_handler);
       accel_service_set_sampling_rate(ACCEL_SAMPLING_10HZ);
     }
@@ -268,19 +227,21 @@ static void bluetooth_connection_handler(bool is_connected) {
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
-  //APP_LOG(APP_LOG_LEVEL_INFO, "tick_handler() called");
-  if (last_update_min != tick_time->tm_min) {
+#if DEBUG
+  APP_LOG(APP_LOG_LEVEL_INFO, "tick_handler() called");
+#endif
+  if (app.last_update_min != tick_time->tm_min) {
     update_time();
-    last_update_min = tick_time->tm_min;
+    app.last_update_min = tick_time->tm_min;
   }
   show_blink_dots();
-  if (config_blink_dots == true) {
-    second_hand_timer = app_timer_register(500, blink_timer_callback, (void *)0);
+  if (app.settings.blink_dots == true) {
+    app.second_hand_timer = app_timer_register(500, blink_timer_callback, (void *)0);
   }
 }
 
 static void configure_tick_handler() {
-  tick_timer_service_subscribe(config_blink_dots ? SECOND_UNIT : MINUTE_UNIT, tick_handler);
+  tick_timer_service_subscribe(app.settings.blink_dots ? SECOND_UNIT : MINUTE_UNIT, tick_handler);
 }
 
 static GRect get_battery_bar_full_frame(void) {
@@ -296,16 +257,17 @@ static void battery_bar_up_animation_stopped(Animation *animation, bool finished
 static void battery_bar_down_animation_stopped(Animation *animation, bool finished, void *data) {
 
   // don't continue if the battery bar is disabled
-  if (config_battery_bar == false) {
+  if (app.settings.battery_bar == false) {
+    basebar_hide_battery();
     return;
   }
   GRect to_rect = get_battery_bar_layer_frame_for_percent(battery_state_service_peek().charge_percent);
-  battery_bar_up_prop_animation = property_animation_create_layer_frame(battery_bar_layer, NULL, &to_rect);
-  animation_set_duration((Animation *)battery_bar_up_prop_animation, 1200);
-  animation_set_handlers((Animation*) battery_bar_up_prop_animation, (AnimationHandlers) {
+  app.battery_bar_up_prop_animation = property_animation_create_layer_frame(app.battery_bar_layer, NULL, &to_rect);
+  animation_set_duration((Animation *)app.battery_bar_up_prop_animation, 1200);
+  animation_set_handlers((Animation*) app.battery_bar_up_prop_animation, (AnimationHandlers) {
     .stopped = (AnimationStoppedHandler) battery_bar_up_animation_stopped,
   }, NULL /* callback data */);
-  animation_schedule((Animation*) battery_bar_up_prop_animation);
+  animation_schedule((Animation*) app.battery_bar_up_prop_animation);
 }
 
 static void start_battery_bar_animation(void) {
@@ -316,12 +278,12 @@ static void start_battery_bar_animation(void) {
 
   // start the battery bar animation from full to 0
   GRect to_rect = get_battery_bar_layer_frame_for_percent(0);
-  battery_bar_down_prop_animation = property_animation_create_layer_frame(battery_bar_layer, NULL, &to_rect);
-  animation_set_duration((Animation *)battery_bar_down_prop_animation, 1200);
-  animation_set_handlers((Animation*) battery_bar_down_prop_animation, (AnimationHandlers) {
+  app.battery_bar_down_prop_animation = property_animation_create_layer_frame(app.battery_bar_layer, NULL, &to_rect);
+  animation_set_duration((Animation *)app.battery_bar_down_prop_animation, 1200);
+  animation_set_handlers((Animation*) app.battery_bar_down_prop_animation, (AnimationHandlers) {
     .stopped = (AnimationStoppedHandler) battery_bar_down_animation_stopped,
   }, NULL /* callback data */);
-  animation_schedule((Animation*) battery_bar_down_prop_animation);
+  animation_schedule((Animation*) app.battery_bar_down_prop_animation);
 }
 
 void basebar_hide_battery_timer_cb(void *data) {
@@ -329,7 +291,9 @@ void basebar_hide_battery_timer_cb(void *data) {
 }
 
 void accel_tap_handler(AccelAxisType axis, int32_t direction) {
-  //APP_LOG(APP_LOG_LEVEL_INFO, "accel_tap_handler");
+#if DEBUG
+  APP_LOG(APP_LOG_LEVEL_INFO, "accel_tap_handler");
+#endif
   static time_t last_shake_time = 0;
   time_t now = time(NULL);
   if (now - last_shake_time <= 6) {
@@ -340,10 +304,10 @@ void accel_tap_handler(AccelAxisType axis, int32_t direction) {
 }
 
 static void set_blink_dots(bool new_value) {
-  if (new_value == config_blink_dots) {
+  if (new_value == app.settings.blink_dots) {
     return;
   }
-  config_blink_dots = new_value;
+  app.settings.blink_dots = new_value;
   persist_write_bool(STRETCH_KEY_BLINK_DOTS, new_value);
   
   if (new_value == false) {
@@ -354,29 +318,29 @@ static void set_blink_dots(bool new_value) {
 }
 
 static void set_is_24hour(bool new_value) {
-  if (new_value == config_is_24hour) {
+  if (new_value == app.settings.is_24hour) {
     return;
   }
-  config_is_24hour = new_value;
+  app.settings.is_24hour = new_value;
   persist_write_bool(STRETCH_KEY_IS_24HOUR, new_value);
   update_time();
 }
 
 static void set_text_color_black(bool new_value) {
-  if (new_value == config_text_color_black) {
+  if (new_value == app.settings.text_color_black) {
     return;
   }
-  config_text_color_black = new_value;
+  app.settings.text_color_black = new_value;
   persist_write_bool(STRETCH_KEY_TEXT_COLOR_BLACK, new_value);
-  layer_set_hidden((Layer *)inv_layer, new_value);
+  layer_set_hidden((Layer *)app.inv_layer, new_value);
   update_time();
 }
 
 static void set_battery_bar(bool new_value) {
-  if (new_value == config_battery_bar) {
+  if (new_value == app.settings.battery_bar) {
     return;
   }
-  config_battery_bar = new_value;
+  app.settings.battery_bar = new_value;
   persist_write_bool(STRETCH_KEY_BATTERY_BAR, new_value);
   if (new_value) {
     battery_bar_down_animation_stopped(NULL, true, NULL);
@@ -387,27 +351,28 @@ static void set_battery_bar(bool new_value) {
 }
 
 static void set_vibrate_bt_dis(bool new_value) {
-  if (new_value == config_vibrate_bt_dis) {
+  if (new_value == app.settings.vibrate_bt_dis) {
     return;
   }
-  config_vibrate_bt_dis = new_value;
+  app.settings.vibrate_bt_dis = new_value;
   persist_write_bool(STRETCH_KEY_VIBRATE_BT_DIS, new_value);
-  // TODO
 }
 
 static void set_vibrate_bt_dis_when_activity(bool new_value) {
-  if (new_value == config_vibrate_bt_dis_when_activity) {
+  if (new_value == app.settings.vibrate_bt_dis_when_activity) {
     return;
   }
-  config_vibrate_bt_dis_when_activity = new_value;
+  app.settings.vibrate_bt_dis_when_activity = new_value;
   persist_write_bool(STRETCH_KEY_VIBRATE_BT_DIS_WHEN_ACTIVITY, new_value);
 }
 
 static void in_received_handler(DictionaryIterator *iter, void *context) {
-  //APP_LOG(APP_LOG_LEVEL_INFO, "in_received_handler() called");
-	Tuple* tuple = dict_read_first(iter);
-	if(!tuple) return;
-	do {
+#if DEBUG
+  APP_LOG(APP_LOG_LEVEL_INFO, "in_received_handler() called");
+#endif
+  Tuple* tuple = dict_read_first(iter);
+  if(!tuple) return;
+  do {
     switch(tuple->key) {
       case STRETCH_KEY_BLINK_DOTS:
         //APP_LOG(APP_LOG_LEVEL_INFO, "STRETCH_KEY_BLINK_DOTS = %d", tuple->value->int8);
@@ -434,7 +399,7 @@ static void in_received_handler(DictionaryIterator *iter, void *context) {
         set_vibrate_bt_dis_when_activity(tuple->value->int8 == 1 ? true : false);
         break;
     }
-	} while((tuple = dict_read_next(iter)));
+  } while((tuple = dict_read_next(iter)));
 }
 
 static void send_config_to_js(void) {
@@ -443,12 +408,12 @@ static void send_config_to_js(void) {
   if (iter == NULL)
     return;
   
-  dict_write_uint8(iter, STRETCH_KEY_BLINK_DOTS, config_blink_dots == true ? 1 : 0);
-  dict_write_uint8(iter, STRETCH_KEY_IS_24HOUR, config_is_24hour == true ? 1 : 0);
-  dict_write_uint8(iter, STRETCH_KEY_TEXT_COLOR_BLACK, config_text_color_black == true ? 1 : 0);
-  dict_write_uint8(iter, STRETCH_KEY_BATTERY_BAR, config_battery_bar == true ? 1 : 0);
-  dict_write_uint8(iter, STRETCH_KEY_VIBRATE_BT_DIS, config_vibrate_bt_dis == true ? 1 : 0);
-  dict_write_uint8(iter, STRETCH_KEY_VIBRATE_BT_DIS_WHEN_ACTIVITY, config_vibrate_bt_dis_when_activity == true ? 1 : 0);
+  dict_write_uint8(iter, STRETCH_KEY_BLINK_DOTS, app.settings.blink_dots == true ? 1 : 0);
+  dict_write_uint8(iter, STRETCH_KEY_IS_24HOUR, app.settings.is_24hour == true ? 1 : 0);
+  dict_write_uint8(iter, STRETCH_KEY_TEXT_COLOR_BLACK, app.settings.text_color_black == true ? 1 : 0);
+  dict_write_uint8(iter, STRETCH_KEY_BATTERY_BAR, app.settings.battery_bar == true ? 1 : 0);
+  dict_write_uint8(iter, STRETCH_KEY_VIBRATE_BT_DIS, app.settings.vibrate_bt_dis == true ? 1 : 0);
+  dict_write_uint8(iter, STRETCH_KEY_VIBRATE_BT_DIS_WHEN_ACTIVITY, app.settings.vibrate_bt_dis_when_activity == true ? 1 : 0);
   dict_write_end(iter);
   app_message_outbox_send();
 }
@@ -458,66 +423,66 @@ void start_battery_bar_animation_timer_cb(void *data) {
 }
 
 static void window_load(Window *window) {
-  digit_images[0] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_0);
-  digit_images[1] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_1);
-  digit_images[2] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_2);
-  digit_images[3] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_3);
-  digit_images[4] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_4);
-  digit_images[5] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_5);
-  digit_images[6] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_6);
-  digit_images[7] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_7);
-  digit_images[8] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_8);
-  digit_images[9] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_9);
-  dot_image = gbitmap_create_with_resource(RESOURCE_ID_DOT);
+  app.digit_images[0] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_0);
+  app.digit_images[1] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_1);
+  app.digit_images[2] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_2);
+  app.digit_images[3] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_3);
+  app.digit_images[4] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_4);
+  app.digit_images[5] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_5);
+  app.digit_images[6] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_6);
+  app.digit_images[7] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_7);
+  app.digit_images[8] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_8);
+  app.digit_images[9] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_9);
+  app.dot_image = gbitmap_create_with_resource(RESOURCE_ID_DOT);
   
   Layer *window_layer = window_get_root_layer(window);
 
   // hour ten's digit
-  tens_digit_layer = layer_create(FOUR_DIGITS_HOUR_TENS_LAYER_GRECT);
-  hour_tens_image_layer = bitmap_layer_create(GRect(0, 0, DIGIT_WIDTH, DIGIT_HEIGHT));
-  layer_add_child(tens_digit_layer, bitmap_layer_get_layer(hour_tens_image_layer));
-  layer_add_child(window_layer, tens_digit_layer);
+  app.tens_digit_layer = layer_create(FOUR_DIGITS_HOUR_TENS_LAYER_GRECT);
+  app.hour_tens_image_layer = bitmap_layer_create(GRect(0, 0, DIGIT_WIDTH, DIGIT_HEIGHT));
+  layer_add_child(app.tens_digit_layer, bitmap_layer_get_layer(app.hour_tens_image_layer));
+  layer_add_child(window_layer, app.tens_digit_layer);
 
   // remaining digit layer
-  remaining_digit_layer = layer_create(FOUR_DIGITS_REMAINING_LAYER_GRECT);
+  app.remaining_digit_layer = layer_create(FOUR_DIGITS_REMAINING_LAYER_GRECT);
   
   // hour one's digit
-  hour_ones_image_layer = bitmap_layer_create(GRect(0, 0, DIGIT_WIDTH, DIGIT_HEIGHT));
-  layer_add_child(remaining_digit_layer, bitmap_layer_get_layer(hour_ones_image_layer));
+  app.hour_ones_image_layer = bitmap_layer_create(GRect(0, 0, DIGIT_WIDTH, DIGIT_HEIGHT));
+  layer_add_child(app.remaining_digit_layer, bitmap_layer_get_layer(app.hour_ones_image_layer));
 
   // top part of the time colon
-  top_dot_image_layer = bitmap_layer_create(GRect(DIGIT_WIDTH+10, 42, COLON_WIDTH, COLON_HEIGHT));
-  bitmap_layer_set_bitmap(top_dot_image_layer, dot_image);
-  layer_add_child(remaining_digit_layer, bitmap_layer_get_layer(top_dot_image_layer));
+  app.top_dot_image_layer = bitmap_layer_create(GRect(DIGIT_WIDTH+10, 42, COLON_WIDTH, COLON_HEIGHT));
+  bitmap_layer_set_bitmap(app.top_dot_image_layer, app.dot_image);
+  layer_add_child(app.remaining_digit_layer, bitmap_layer_get_layer(app.top_dot_image_layer));
 
   // bottom part of the time colon
-  bottom_dot_image_layer = bitmap_layer_create(GRect(DIGIT_WIDTH+10, 77, COLON_WIDTH, COLON_HEIGHT));
-  bitmap_layer_set_bitmap(bottom_dot_image_layer, dot_image);
-  layer_add_child(remaining_digit_layer, bitmap_layer_get_layer(bottom_dot_image_layer));
+  app.bottom_dot_image_layer = bitmap_layer_create(GRect(DIGIT_WIDTH+10, 77, COLON_WIDTH, COLON_HEIGHT));
+  bitmap_layer_set_bitmap(app.bottom_dot_image_layer, app.dot_image);
+  layer_add_child(app.remaining_digit_layer, bitmap_layer_get_layer(app.bottom_dot_image_layer));
 
   // minute ten's digit
-  min_tens_image_layer = bitmap_layer_create(GRect(DIGIT_WIDTH+SPACE_BETWEEN_DIGIT+COLON_PADDING+COLON_WIDTH, 0, DIGIT_WIDTH, DIGIT_HEIGHT));
-  layer_add_child(remaining_digit_layer, bitmap_layer_get_layer(min_tens_image_layer));
+  app.min_tens_image_layer = bitmap_layer_create(GRect(DIGIT_WIDTH+SPACE_BETWEEN_DIGIT+COLON_PADDING+COLON_WIDTH, 0, DIGIT_WIDTH, DIGIT_HEIGHT));
+  layer_add_child(app.remaining_digit_layer, bitmap_layer_get_layer(app.min_tens_image_layer));
 
   // minute one's digit
-  min_ones_image_layer = bitmap_layer_create(GRect(2*DIGIT_WIDTH+2*SPACE_BETWEEN_DIGIT+COLON_PADDING+COLON_WIDTH, 0, DIGIT_WIDTH, DIGIT_HEIGHT));
-  layer_add_child(remaining_digit_layer, bitmap_layer_get_layer(min_ones_image_layer));
+  app.min_ones_image_layer = bitmap_layer_create(GRect(2*DIGIT_WIDTH+2*SPACE_BETWEEN_DIGIT+COLON_PADDING+COLON_WIDTH, 0, DIGIT_WIDTH, DIGIT_HEIGHT));
+  layer_add_child(app.remaining_digit_layer, bitmap_layer_get_layer(app.min_ones_image_layer));
 
   // add on the remainging digit layer
-  layer_add_child(window_layer, remaining_digit_layer);
+  layer_add_child(window_layer, app.remaining_digit_layer);
 
   basebar_setup(window_layer);
 
   // battery bar
-  battery_bar_layer = layer_create(get_battery_bar_full_frame());
-  layer_set_update_proc(battery_bar_layer, &battery_bar_layer_update_callback);
-  layer_add_child(window_layer, battery_bar_layer);
+  app.battery_bar_layer = layer_create(get_battery_bar_full_frame());
+  layer_set_update_proc(app.battery_bar_layer, &battery_bar_layer_update_callback);
+  layer_add_child(window_layer, app.battery_bar_layer);
   
   //Inverter layer
-  inv_layer = inverter_layer_create(layer_get_bounds(window_layer));
-  layer_add_child(window_get_root_layer(window), (Layer*) inv_layer);
-  if (config_text_color_black) {
-    layer_set_hidden((Layer *)inv_layer, true);
+  app.inv_layer = inverter_layer_create(layer_get_bounds(window_layer));
+  layer_add_child(window_get_root_layer(window), (Layer*) app.inv_layer);
+  if (app.settings.text_color_black) {
+    layer_set_hidden((Layer *)app.inv_layer, true);
   }
 
   configure_tick_handler();
@@ -532,73 +497,90 @@ static void window_load(Window *window) {
 }
 
 static void window_unload(Window *window) {
-  if (second_hand_timer) {
-    app_timer_cancel(second_hand_timer);
+  if (app.second_hand_timer) {
+    app_timer_cancel(app.second_hand_timer);
   }
   basebar_teardown();
-  property_animation_destroy(battery_bar_down_prop_animation);
-  property_animation_destroy(battery_bar_up_prop_animation);
+  property_animation_destroy(app.battery_bar_down_prop_animation);
+  property_animation_destroy(app.battery_bar_up_prop_animation);
   battery_state_service_unsubscribe();
   tick_timer_service_unsubscribe();
   accel_tap_service_unsubscribe();
-  bitmap_layer_destroy(min_ones_image_layer);
-  bitmap_layer_destroy(min_tens_image_layer);
-  bitmap_layer_destroy(hour_ones_image_layer);
-  bitmap_layer_destroy(hour_tens_image_layer);
-  bitmap_layer_destroy(bottom_dot_image_layer);
-  bitmap_layer_destroy(top_dot_image_layer);
-  inverter_layer_destroy(inv_layer);
-  layer_destroy(battery_bar_layer);
-  layer_destroy(tens_digit_layer);
-  layer_destroy(remaining_digit_layer);
-  gbitmap_destroy(digit_images[0]);
-  gbitmap_destroy(digit_images[1]);
-  gbitmap_destroy(digit_images[2]);
-  gbitmap_destroy(digit_images[3]);
-  gbitmap_destroy(digit_images[4]);
-  gbitmap_destroy(digit_images[5]);
-  gbitmap_destroy(digit_images[6]);
-  gbitmap_destroy(digit_images[7]);
-  gbitmap_destroy(digit_images[8]);
-  gbitmap_destroy(digit_images[9]);
-  gbitmap_destroy(dot_image);
+  bitmap_layer_destroy(app.min_ones_image_layer);
+  bitmap_layer_destroy(app.min_tens_image_layer);
+  bitmap_layer_destroy(app.hour_ones_image_layer);
+  bitmap_layer_destroy(app.hour_tens_image_layer);
+  bitmap_layer_destroy(app.bottom_dot_image_layer);
+  bitmap_layer_destroy(app.top_dot_image_layer);
+  inverter_layer_destroy(app.inv_layer);
+  layer_destroy(app.battery_bar_layer);
+  layer_destroy(app.tens_digit_layer);
+  layer_destroy(app.remaining_digit_layer);
+  gbitmap_destroy(app.digit_images[0]);
+  gbitmap_destroy(app.digit_images[1]);
+  gbitmap_destroy(app.digit_images[2]);
+  gbitmap_destroy(app.digit_images[3]);
+  gbitmap_destroy(app.digit_images[4]);
+  gbitmap_destroy(app.digit_images[5]);
+  gbitmap_destroy(app.digit_images[6]);
+  gbitmap_destroy(app.digit_images[7]);
+  gbitmap_destroy(app.digit_images[8]);
+  gbitmap_destroy(app.digit_images[9]);
+  gbitmap_destroy(app.dot_image);
 }
 
 static void load_config(void) {
   if (!persist_exists(STRETCH_KEY_BLINK_DOTS)) {
     persist_write_bool(STRETCH_KEY_BLINK_DOTS, false);
   }
-  config_blink_dots = persist_read_bool(STRETCH_KEY_BLINK_DOTS);
+  app.settings.blink_dots = persist_read_bool(STRETCH_KEY_BLINK_DOTS);
 
   if (!persist_exists(STRETCH_KEY_IS_24HOUR)) {
     persist_write_bool(STRETCH_KEY_IS_24HOUR, true);
   }
-  config_is_24hour = persist_read_bool(STRETCH_KEY_IS_24HOUR);
+  app.settings.is_24hour = persist_read_bool(STRETCH_KEY_IS_24HOUR);
 
   if (!persist_exists(STRETCH_KEY_TEXT_COLOR_BLACK)) {
     persist_write_bool(STRETCH_KEY_TEXT_COLOR_BLACK, false);
   }
-  config_text_color_black = persist_read_bool(STRETCH_KEY_TEXT_COLOR_BLACK);
+  app.settings.text_color_black = persist_read_bool(STRETCH_KEY_TEXT_COLOR_BLACK);
 
   if (!persist_exists(STRETCH_KEY_BATTERY_BAR)) {
     persist_write_bool(STRETCH_KEY_BATTERY_BAR, true);
   }
-  config_battery_bar = persist_read_bool(STRETCH_KEY_BATTERY_BAR);
+  app.settings.battery_bar = persist_read_bool(STRETCH_KEY_BATTERY_BAR);
 
   if (!persist_exists(STRETCH_KEY_VIBRATE_BT_DIS)) {
     persist_write_bool(STRETCH_KEY_VIBRATE_BT_DIS, false);
   }
-  config_vibrate_bt_dis = persist_read_bool(STRETCH_KEY_VIBRATE_BT_DIS);
+  app.settings.vibrate_bt_dis = persist_read_bool(STRETCH_KEY_VIBRATE_BT_DIS);
 
   if (!persist_exists(STRETCH_KEY_VIBRATE_BT_DIS_WHEN_ACTIVITY)) {
     persist_write_bool(STRETCH_KEY_VIBRATE_BT_DIS_WHEN_ACTIVITY, true);
   }
-  config_vibrate_bt_dis_when_activity = persist_read_bool(STRETCH_KEY_VIBRATE_BT_DIS_WHEN_ACTIVITY);
+  app.settings.vibrate_bt_dis_when_activity = persist_read_bool(STRETCH_KEY_VIBRATE_BT_DIS_WHEN_ACTIVITY);
+}
+
+void settings_init(void) {
+  app.settings.is_24hour = true;
+  app.settings.blink_dots = true;
+  app.settings.text_color_black = false;
+  app.settings.battery_bar = true;
+  app.settings.vibrate_bt_dis = false;
+  app.settings.vibrate_bt_dis_when_activity = true;
 }
 
 static void init(void) {
-  window = window_create();
-  window_set_window_handlers(window, (WindowHandlers) {
+  settings_init();
+
+  app.last_update_min = 99;
+  app.second_hand_timer = (AppTimer *)0;
+  app.seen_bt_disconnected = false;
+  app.accel_sampling_tries = 0;
+  app.battery_charge_percent = battery_state_service_peek().charge_percent;
+
+  app.window = window_create();
+  window_set_window_handlers(app.window, (WindowHandlers) {
     .load = window_load,
     .unload = window_unload,
   });
@@ -616,12 +598,12 @@ static void init(void) {
     
   // Push the window onto the stack
   const bool animated = true;
-  window_stack_push(window, animated);
+  window_stack_push(app.window, animated);
 }
 
 static void deinit(void) {
   app_message_deregister_callbacks();
-  window_destroy(window);
+  window_destroy(app.window);
 }
 
 int main(void) {

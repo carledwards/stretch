@@ -1,4 +1,4 @@
-
+#include "stretch.h"
 #include "basebar.h"
 
 #define CUSTOM_FONT_ID       RESOURCE_ID_PM_32
@@ -46,7 +46,7 @@ void basebar_setup(Layer *window_layer) {
   // set the value of the battery percentage
   static char battery_label_buffer[9] = "BAT 100%";
   battery_label_buffer[0] = '\0';
-  snprintf(battery_label_buffer, 9, "BAT %d%%", battery_state_service_peek().charge_percent);
+  snprintf(battery_label_buffer, 9, "BAT %d%%", app.battery_charge_percent);
   text_layer_set_text(battery_label, battery_label_buffer);  
 }
 
