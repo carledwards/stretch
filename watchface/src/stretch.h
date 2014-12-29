@@ -55,7 +55,6 @@ typedef struct {
     int last_update_min;
     AppTimer *second_hand_timer;
     bool seen_bt_disconnected;
-    int battery_charge_percent;
     PropertyAnimation *battery_bar_down_prop_animation;
     PropertyAnimation *battery_bar_up_prop_animation;
     int accel_sampling_tries;

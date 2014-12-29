@@ -16,17 +16,12 @@
     "resources": {
         "media": [
             {
-                "file": "images/no_bt.png",
-                "name": "NO_BT",
-                "type": "png"
-            },
-            {
                 "file": "images/long_digit_1.png",
                 "name": "LONG_DIGIT_1",
                 "type": "png"
             },
             {
-                "characterRegex": "[0-9,onuedhuriatBMONTUEWDHFRISA\\ /%]",
+                "characterRegex": "[0-9,onuedhuriatBMONTUEWDHFRISA\\ /%}]",
                 "file": "fonts/PixelMecha.ttf",
                 "name": "PM_32",
                 "type": "font"
@@ -86,7 +81,7 @@
     "shortName": "Stretch",
     "uuid": "2970382a-b986-494c-b55e-23cf3fc67333",
     "versionCode": 1,
-    "versionLabel": "1.2",
+    "versionLabel": "1.3",
     "watchapp": {
         "watchface": true
     }

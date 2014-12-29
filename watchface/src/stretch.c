@@ -82,7 +82,6 @@ static void set_battery_bar_layer_percent(int percent) {
 }
 
 static void handle_battery_event(BatteryChargeState charge_state) {
-  app.battery_charge_percent = charge_state.charge_percent;
   set_battery_bar_layer_percent(charge_state.charge_percent);
 }
 
@@ -93,34 +92,27 @@ static void update_time() {
   temp = time(NULL);
   t = localtime(&temp);
 
-  static char *time_buffer = "012345678901";
-  time_buffer[0] = '\0';
+  static char *dow_buffer = "Wed ";
+  dow_buffer[0] = '\0';
     
-  if (bluetooth_connection_service_peek()) {
-    // get the DOW
-    strftime(time_buffer, 4, "%a", t);
-    time_buffer[3] = '\0';
+  // get the DOW
+  strftime(dow_buffer, 4, "%a", t);
+  dow_buffer[3] = '\0';
+  basebar_set_dow_text(dow_buffer);
+  
+  static char *date_buffer = "12/31 ";
+  date_buffer[0] = '\0';
+  strcat(date_buffer, itoa(t->tm_mon + 1));
 
-    if (t->tm_mon < 9 && t->tm_mday < 10) {
-      strcat(time_buffer, "    ");
-    }
-    else if (t->tm_mon >= 9 && t->tm_mday >= 10) {
-      strcat(time_buffer, "   ");
-    }
-    else {
-      strcat(time_buffer, "  ");
-    }
-    basebar_hide_no_bt_image();
+  if (bluetooth_connection_service_peek()) {
+    strcat(date_buffer, "/");
   }
   else {
-    strcat(time_buffer, "    ");
-    basebar_show_no_bt_image(); 
+    strcat(date_buffer, "}");  // this is the no-bt font character
   }
-  strcat(time_buffer, itoa(t->tm_mon + 1));
-  strcat(time_buffer, "/");
-  strcat(time_buffer, itoa(t->tm_mday));
-  
-  basebar_set_date_text(time_buffer);
+
+  strcat(date_buffer, itoa(t->tm_mday));
+  basebar_set_date_text(date_buffer);
 
   int hour = t->tm_hour;
 
@@ -577,7 +569,6 @@ static void init(void) {
   app.second_hand_timer = (AppTimer *)0;
   app.seen_bt_disconnected = false;
   app.accel_sampling_tries = 0;
-  app.battery_charge_percent = battery_state_service_peek().charge_percent;
 
   app.window = window_create();
   window_set_window_handlers(app.window, (WindowHandlers) {
