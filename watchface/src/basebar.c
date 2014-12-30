@@ -26,7 +26,7 @@ void basebar_setup(Layer *window_layer) {
   layer_add_child(clip_layer, date_layer);
 
   // dow label
-  dow_label = text_layer_create(GRect(6, 0, 45, 34));
+  dow_label = text_layer_create(GRect(6, 0, 50, 34));
   text_layer_set_text_color(dow_label, GColorBlack);
   text_layer_set_font(dow_label, s_digital_font);
   text_layer_set_text_alignment(dow_label, GTextAlignmentLeft);
