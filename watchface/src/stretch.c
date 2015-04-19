@@ -4,7 +4,7 @@
 #include "stretch.h"
 #include "basebar.h"
 
-#define DEBUG 0
+#define DEBUG 1
 
 StretchApplication app;
 
@@ -60,8 +60,13 @@ GRect get_battery_bar_layer_frame_for_percent(int percent) {
 static void battery_bar_layer_update_callback(Layer *me, GContext* ctx ) {
   //APP_LOG(APP_LOG_LEVEL_INFO, "battery_bar_layer_update_callback() called");
 
-  graphics_context_set_stroke_color(ctx, GColorBlack);
-  graphics_context_set_fill_color(ctx, GColorBlack);
+#ifdef PBL_COLOR
+  graphics_context_set_stroke_color(ctx, GColorBrilliantRose);
+  graphics_context_set_fill_color(ctx, GColorBrilliantRose);
+#else
+  graphics_context_set_stroke_color(ctx, GColorWhite);
+  graphics_context_set_fill_color(ctx, GColorWhite);
+#endif
 
   GRect me_bounds = layer_get_bounds(me);
   graphics_fill_rect(ctx, GRect(me_bounds.origin.x, me_bounds.origin.y, me_bounds.size.w, me_bounds.size.h), 4, GCornerNone);
@@ -318,16 +323,6 @@ static void set_is_24hour(bool new_value) {
   update_time();
 }
 
-static void set_text_color_black(bool new_value) {
-  if (new_value == app.settings.text_color_black) {
-    return;
-  }
-  app.settings.text_color_black = new_value;
-  persist_write_bool(STRETCH_KEY_TEXT_COLOR_BLACK, new_value);
-  layer_set_hidden((Layer *)app.inv_layer, new_value);
-  update_time();
-}
-
 static void set_battery_bar(bool new_value) {
   if (new_value == app.settings.battery_bar) {
     return;
@@ -374,10 +369,6 @@ static void in_received_handler(DictionaryIterator *iter, void *context) {
         //APP_LOG(APP_LOG_LEVEL_INFO, "STRETCH_KEY_IS_24HOUR = %d", tuple->value->int8);
         set_is_24hour(tuple->value->int8 == 1 ? true : false);
         break;
-      case STRETCH_KEY_TEXT_COLOR_BLACK:
-        //APP_LOG(APP_LOG_LEVEL_INFO, "STRETCH_KEY_TEXT_COLOR_BLACK = %d", tuple->value->int8);
-        set_text_color_black(tuple->value->int8 == 1 ? true : false);
-        break;
       case STRETCH_KEY_BATTERY_BAR:
         //APP_LOG(APP_LOG_LEVEL_INFO, "STRETCH_KEY_BATTERY_BAR = %d", tuple->value->int8);
         set_battery_bar(tuple->value->int8 == 1 ? true : false);
@@ -402,7 +393,6 @@ static void send_config_to_js(void) {
   
   dict_write_uint8(iter, STRETCH_KEY_BLINK_DOTS, app.settings.blink_dots == true ? 1 : 0);
   dict_write_uint8(iter, STRETCH_KEY_IS_24HOUR, app.settings.is_24hour == true ? 1 : 0);
-  dict_write_uint8(iter, STRETCH_KEY_TEXT_COLOR_BLACK, app.settings.text_color_black == true ? 1 : 0);
   dict_write_uint8(iter, STRETCH_KEY_BATTERY_BAR, app.settings.battery_bar == true ? 1 : 0);
   dict_write_uint8(iter, STRETCH_KEY_VIBRATE_BT_DIS, app.settings.vibrate_bt_dis == true ? 1 : 0);
   dict_write_uint8(iter, STRETCH_KEY_VIBRATE_BT_DIS_WHEN_ACTIVITY, app.settings.vibrate_bt_dis_when_activity == true ? 1 : 0);
@@ -426,6 +416,8 @@ static void window_load(Window *window) {
   app.digit_images[8] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_8);
   app.digit_images[9] = gbitmap_create_with_resource(RESOURCE_ID_LONG_DIGIT_9);
   app.dot_image = gbitmap_create_with_resource(RESOURCE_ID_DOT);
+
+  window_set_background_color(window, GColorBlack);
   
   Layer *window_layer = window_get_root_layer(window);
 
@@ -470,13 +462,6 @@ static void window_load(Window *window) {
   layer_set_update_proc(app.battery_bar_layer, &battery_bar_layer_update_callback);
   layer_add_child(window_layer, app.battery_bar_layer);
   
-  //Inverter layer
-  app.inv_layer = inverter_layer_create(layer_get_bounds(window_layer));
-  layer_add_child(window_get_root_layer(window), (Layer*) app.inv_layer);
-  if (app.settings.text_color_black) {
-    layer_set_hidden((Layer *)app.inv_layer, true);
-  }
-
   configure_tick_handler();
 
   // listen for bluetooth connection events
@@ -504,7 +489,6 @@ static void window_unload(Window *window) {
   bitmap_layer_destroy(app.hour_tens_image_layer);
   bitmap_layer_destroy(app.bottom_dot_image_layer);
   bitmap_layer_destroy(app.top_dot_image_layer);
-  inverter_layer_destroy(app.inv_layer);
   layer_destroy(app.battery_bar_layer);
   layer_destroy(app.tens_digit_layer);
   layer_destroy(app.remaining_digit_layer);
@@ -532,11 +516,6 @@ static void load_config(void) {
   }
   app.settings.is_24hour = persist_read_bool(STRETCH_KEY_IS_24HOUR);
 
-  if (!persist_exists(STRETCH_KEY_TEXT_COLOR_BLACK)) {
-    persist_write_bool(STRETCH_KEY_TEXT_COLOR_BLACK, false);
-  }
-  app.settings.text_color_black = persist_read_bool(STRETCH_KEY_TEXT_COLOR_BLACK);
-
   if (!persist_exists(STRETCH_KEY_BATTERY_BAR)) {
     persist_write_bool(STRETCH_KEY_BATTERY_BAR, true);
   }
@@ -556,7 +535,6 @@ static void load_config(void) {
 void settings_init(void) {
   app.settings.is_24hour = true;
   app.settings.blink_dots = true;
-  app.settings.text_color_black = false;
   app.settings.battery_bar = true;
   app.settings.vibrate_bt_dis = false;
   app.settings.vibrate_bt_dis_when_activity = true;

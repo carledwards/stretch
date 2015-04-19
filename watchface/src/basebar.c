@@ -24,24 +24,41 @@ void basebar_setup(Layer *window_layer) {
   // date layer (contains the date text labels)
   date_layer = layer_create(GRect(0, -40, 144, 34));
   layer_add_child(clip_layer, date_layer);
+  
 
   // dow label
   dow_label = text_layer_create(GRect(6, 0, 50, 34));
-  text_layer_set_text_color(dow_label, GColorBlack);
+
+#ifdef PBL_COLOR
+  text_layer_set_text_color(dow_label, GColorCyan);
+#else
+  text_layer_set_text_color(dow_label, GColorWhite);
+#endif
+  text_layer_set_background_color(dow_label, GColorBlack);
   text_layer_set_font(dow_label, s_digital_font);
   text_layer_set_text_alignment(dow_label, GTextAlignmentLeft);
   layer_add_child(date_layer, text_layer_get_layer(dow_label));
   
   // date label
   date_label = text_layer_create(GRect(72, 0, 70, 34));
-  text_layer_set_text_color(date_label, GColorBlack);
+#ifdef PBL_COLOR
+  text_layer_set_text_color(date_label, GColorCyan);
+#else
+  text_layer_set_text_color(date_label, GColorWhite);
+#endif
+  text_layer_set_background_color(date_label, GColorBlack);
   text_layer_set_font(date_label, s_digital_font);
   text_layer_set_text_alignment(date_label, GTextAlignmentRight);
   layer_add_child(date_layer, text_layer_get_layer(date_label));
 
   // battery label
   battery_label = text_layer_create(GRect(0, -6, 144, 34));
-  text_layer_set_text_color(battery_label, GColorBlack);
+#ifdef PBL_COLOR
+  text_layer_set_text_color(battery_label, GColorCyan);
+#else
+  text_layer_set_text_color(battery_label, GColorWhite);
+#endif
+  text_layer_set_background_color(battery_label, GColorBlack);
   text_layer_set_font(battery_label, s_digital_font);
   text_layer_set_text_alignment(battery_label, GTextAlignmentCenter);
   layer_add_child(clip_layer, text_layer_get_layer(battery_label));
@@ -80,14 +97,14 @@ void basebar_hide_battery() {
   destroy_animations();
   GRect battery_label_to_frame = GRect(0, 28, 144, 34);
   batt_animation = property_animation_create_layer_frame(text_layer_get_layer(battery_label), NULL, &battery_label_to_frame);
-  animation_set_curve(&(batt_animation->animation), AnimationCurveLinear);
+  animation_set_curve((property_animation_get_animation(batt_animation)), AnimationCurveLinear);
   animation_set_duration((Animation *)batt_animation, 700);
-  animation_schedule(&(batt_animation->animation));
+  animation_schedule((property_animation_get_animation(batt_animation)));
   GRect date_layer_to_frame = GRect(0, -6, 144, 34);
   date_animation = property_animation_create_layer_frame(date_layer, NULL, &date_layer_to_frame);
-  animation_set_curve(&(date_animation->animation), AnimationCurveLinear);
+  animation_set_curve((property_animation_get_animation(date_animation)), AnimationCurveLinear);
   animation_set_duration((Animation *)date_animation, 700);
-  animation_schedule(&(date_animation->animation));
+  animation_schedule((property_animation_get_animation(date_animation)));
 }
 
 void basebar_show_battery() {
@@ -100,12 +117,12 @@ void basebar_show_battery() {
   destroy_animations();
   GRect battery_label_to_frame = GRect(0, -6, 144, 34);
   batt_animation = property_animation_create_layer_frame(text_layer_get_layer(battery_label), NULL, &battery_label_to_frame);
-  animation_set_curve(&(batt_animation->animation), AnimationCurveLinear);
+  animation_set_curve((property_animation_get_animation(batt_animation)), AnimationCurveLinear);
   animation_set_duration((Animation *)batt_animation, 700);
-  animation_schedule(&(batt_animation->animation));
+  animation_schedule((property_animation_get_animation(batt_animation)));
   GRect date_layer_to_frame = GRect(0, -40, 144, 34);
   date_animation = property_animation_create_layer_frame(date_layer, NULL, &date_layer_to_frame);
-  animation_set_curve(&(date_animation->animation), AnimationCurveLinear);
+  animation_set_curve((property_animation_get_animation(date_animation)), AnimationCurveLinear);
   animation_set_duration((Animation *)date_animation, 700);
-  animation_schedule(&(date_animation->animation));
+  animation_schedule((property_animation_get_animation(date_animation)));
 }

@@ -33,14 +33,6 @@
         </div>
 
         <div data-role="fieldcontain">
-          <label for="text-color">Text color:</label>
-          <select name="text-color" id="text-color" data-role="slider">
-            <option value="off">White</option>
-            <option value="on">Black</option>
-          </select>
-        </div>
-
-        <div data-role="fieldcontain">
           <label for="battery-bar">Battery bar:</label>
           <select name="battery-bar" id="battery-bar" data-role="slider">
             <option value="off">Off</option>
@@ -78,7 +70,7 @@
         var options = {
           'blink-dots': $("#blink-dots").val() === "on",
           '24-hour-mode': $("#24-hour-mode").val() === "on",
-          'text-color': $("#text-color").val() === "on",
+          'text-color': false, // backward compatibility with previous version
           'battery-bar': $("#battery-bar").val() === "on",
           'vibrate-bt-dis': $("#vibrate-bt-dis").val() === "on",
           'vibrate-bt-dis-when-activity': $("#vibrate-bt-dis-when-activity").val() === "on"
@@ -94,7 +86,6 @@
       $().ready(function() {
         setSliderValue("blink-dots");
         setSliderValue("24-hour-mode");
-        setSliderValue("text-color");
         setSliderValue("battery-bar");
         setSliderValue("vibrate-bt-dis");
         setSliderValue("vibrate-bt-dis-when-activity");

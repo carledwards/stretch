@@ -8,7 +8,7 @@
 #define COLON_WIDTH          5
 #define SPACE_BETWEEN_DIGIT  7
 #define COLON_PADDING        14
-#define BATTERY_WIDTH_IN_PIXELS  140
+#define BATTERY_WIDTH_IN_PIXELS  144
 
 #define TIME_TOP_MARGIN      6
 
@@ -23,7 +23,6 @@
 enum {
   STRETCH_KEY_BLINK_DOTS = 0x0,
   STRETCH_KEY_IS_24HOUR = 0x1,
-  STRETCH_KEY_TEXT_COLOR_BLACK = 0x2,
   STRETCH_KEY_BATTERY_BAR = 0x3,
   STRETCH_KEY_VIBRATE_BT_DIS = 0x4,
   STRETCH_KEY_VIBRATE_BT_DIS_WHEN_ACTIVITY = 0x5
@@ -32,7 +31,6 @@ enum {
 typedef struct {
   bool is_24hour;
   bool blink_dots;
-  bool text_color_black;
   bool battery_bar;
   bool vibrate_bt_dis;
   bool vibrate_bt_dis_when_activity;
